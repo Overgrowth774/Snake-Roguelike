@@ -62,7 +62,7 @@ function gameLoop() {
         newHead.x < 0 || 
         newHead.x >= tileCount ||
         newHead.y < 0 || 
-        newHead.y >= tileCount
+        newHead.y >= tileCount ||
         snakeHitsItself(newHead)
     ) {
         resetGame();
@@ -152,4 +152,4 @@ function resetGame() {
 }
 
 draw();
-setInterval(gameloop, 120);
+setInterval(gameLoop, 120);
