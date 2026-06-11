@@ -230,7 +230,9 @@ function chooseUpgrade() {
 
     upgradesChosen++;
 
-    if (upgradesChosen > 2) {
+    if (upgradesChosen === 2) {
+        spawnEnemySnake();
+    } else if (upgradesChosen > 2) {
         upgradeEnemySnake();
     }
 
