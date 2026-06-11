@@ -5,6 +5,8 @@ const highScoreElement = document.getElementById("high-score");
 const tileSize = 24;
 const tileCountX = canvas.width / tileSize;
 const tileCountY = canvas.height / tileSize;
+const invincibilityElement = document.getElementById("invincibility");
+
 
 let snake = [
     { x: 12, y: 12 }
@@ -31,6 +33,13 @@ let enemyMoveCounter = 0;
 let enemyMoveDelay = 8;
 let enemyStartingLength = 4;
 
+let invincibilityLevel = 0;
+let invincible = false;
+let invincibilityReady = true;
+let invincibilityDuration = 5000;
+let invincibilityCooldown = 60000;
+let invincibilityEndTimer;
+let invincibilityCooldownTimer;
 
 let direction = { 
     x: 1, 
@@ -59,6 +68,11 @@ function addScore(points) {
 function changeDirection(event) {
     const key = event.key.toLowerCase();
 
+    if (key === "v") {
+    activateInvincibility();
+    return;
+}
+
     if ((key === "arrowup" || key === "w") && direction.y !== 1) {
         nextDirection = { x: 0, y: -1 };
     }  
@@ -86,16 +100,19 @@ function gameLoop() {
         y: head.y + direction.y
     }; 
 
-    if (
-        newHead.x < 0 || 
-        newHead.x >= tileCountX ||
-        newHead.y < 0 || 
-        newHead.y >= tileCountY ||
-        snakeHitsItself(newHead)
-    ) {
-        resetGame();
-        return;
-    }
+    if (invincible) {
+    newHead.x = Math.max(0, Math.min(tileCountX - 1, newHead.x));
+    newHead.y = Math.max(0, Math.min(tileCountY - 1, newHead.y));
+} else if (
+    newHead.x < 0 || 
+    newHead.x >= tileCountX ||
+    newHead.y < 0 || 
+    newHead.y >= tileCountY ||
+    snakeHitsItself(newHead)
+) {
+    resetGame();
+    return;
+}
 
     snake.unshift(newHead);
 
@@ -199,6 +216,12 @@ function createApple() {
         }
     }
 
+    for (const enemyPart of enemySnake) {
+    if (enemyPart.x === newApple.x && enemyPart.y === newApple.y) {
+        return createApple();
+    }
+}
+
     return newApple;
 
 }
@@ -211,8 +234,8 @@ function chooseUpgrade() {
     ];
 
     const choice = prompt(
-        `Choose an upgrade:\n1. Speed Up\n2. Double Score\n3. Grow More`
-    );
+    `Choose an upgrade:\n1. Speed Up\n2. Double Score\n3. Grow More\n4. Invincibility`
+);
 
     if (choice === "1") {
         gameSpeed = Math.max(50, gameSpeed - 20);
@@ -228,6 +251,13 @@ function chooseUpgrade() {
         growthAmount++;
     }
 
+    if (choice === "4") {
+    invincibilityLevel++;
+    invincibilityDuration += 1000;
+    invincibilityCooldown += 1000;
+    invincibilityReady = true;
+    updateInvincibilityHud();
+}
     upgradesChosen++;
 
     if (upgradesChosen === 2) {
@@ -236,6 +266,41 @@ function chooseUpgrade() {
         upgradeEnemySnake();
     }
 
+}
+
+function activateInvincibility() {
+    if (invincibilityLevel === 0 || !invincibilityReady || invincible) {
+        return;
+    }
+
+    invincible = true;
+    invincibilityReady = false;
+    updateInvincibilityHud();
+
+    clearTimeout(invincibilityEndTimer);
+    clearTimeout(invincibilityCooldownTimer);
+
+    invincibilityEndTimer = setTimeout(function () {
+        invincible = false;
+        updateInvincibilityHud();
+    }, invincibilityDuration);
+
+    invincibilityCooldownTimer = setTimeout(function () {
+        invincibilityReady = true;
+        updateInvincibilityHud();
+    }, invincibilityCooldown);
+}
+
+function updateInvincibilityHud() {
+    if (invincibilityLevel === 0) {
+        invincibilityElement.textContent = "Locked";
+    } else if (invincible) {
+        invincibilityElement.textContent = "Active";
+    } else if (invincibilityReady) {
+        invincibilityElement.textContent = "Ready";
+    } else {
+        invincibilityElement.textContent = "Cooldown";
+    }
 }
 
 function spawnEnemySnake() {
@@ -285,43 +350,94 @@ function updateEnemySnake() {
     const enemyHead = enemySnake[0];
     const playerHead = snake[0];
 
-    let moveX = 0;
-    let moveY = 0;
+    const moves = [
+        { x: 1, y: 0 },
+        { x: -1, y: 0 },
+        { x: 0, y: 1 },
+        { x: 0, y: -1 }
+    ];
 
-    const distanceX = playerHead.x - enemyHead.x;
-    const distanceY = playerHead.y - enemyHead.y;
+    let bestMove = moves[0];
+    let bestScore = Infinity;
 
-    if (Math.abs(distanceX) > Math.abs(distanceY)) {
-        moveX = distanceX > 0 ? 1 : -1;
-    } else {
-        moveY = distanceY > 0 ? 1 : -1;
-    }
+    for (const move of moves) {
+        const testHead = {
+            x: enemyHead.x + move.x,
+            y: enemyHead.y + move.y
+        };
 
-    const newEnemyHead = {
-        x: enemyHead.x + moveX,
-        y: enemyHead.y + moveY
-    };
+        let moveScore = getDistance(testHead, playerHead);
 
-    enemySnake.unshift(newEnemyHead);
-    enemySnake.pop();
+        if (testHead.x < 0 || testHead.x >= tileCountX || testHead.y < 0 || testHead.y >= tileCountY) {
+            moveScore += 10000;
+        }
 
-    if (enemyHitsPlayer()) {
-        addScore(100 * scoreMultiplier);
-        spawnEnemySnake();
-    }
-}
+        if (enemyWouldHitItself(testHead)) {
+            moveScore += 5000;
+        }
 
-function enemyHitsPlayer() {
-    const enemyHead = enemySnake[0];
+        if (enemyWouldHitPlayerBody(testHead)) {
+            moveScore += 3000;
+        }
 
-    for (const part of snake) {
-        if (part.x === enemyHead.x && part.y === enemyHead.y) {
-            return true;
+        if (moveScore < bestScore) {
+            bestScore = moveScore;
+            bestMove = move;
         }
     }
 
-    return false;
+    const newEnemyHead = {
+        x: enemyHead.x + bestMove.x,
+        y: enemyHead.y + bestMove.y
+    };
 
+    enemySnake.unshift(newEnemyHead);
+
+    const appleIndex = apples.findIndex(function (apple) {
+        return apple.x === newEnemyHead.x && apple.y === newEnemyHead.y;
+    });
+
+    if (appleIndex !== -1) {
+        apples[appleIndex] = createApple();
+    } else {
+        enemySnake.pop();
+    }
+
+    handleEnemyPlayerCollision();
+}
+
+function handleEnemyPlayerCollision() {
+    const enemyHead = enemySnake[0];
+    const playerHead = snake[0];
+
+    if (enemyHead.x === playerHead.x && enemyHead.y === playerHead.y) {
+        if (invincible) {
+            addScore(100);
+            spawnEnemySnake();
+        } else {
+            resetGame();
+        }
+
+        return;
+    }
+
+    for (let i = 1; i < snake.length; i++) {
+        if (enemyHead.x === snake[i].x && enemyHead.y === snake[i].y) {
+            addScore(100);
+            spawnEnemySnake();
+            return;
+        }
+    }
+
+    if (invincible) {
+        for (const enemyPart of enemySnake) {
+            if (playerHead.x === enemyPart.x && playerHead.y === enemyPart.y) {
+                addScore(100);
+                spawnEnemySnake();
+                return;
+            }
+        }
+    }
 }
 
 
@@ -331,6 +447,30 @@ function snakeHitsItself(head) {
             return true;
         }
     }
+    return false;
+}
+
+function getDistance(a, b) {
+    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+function enemyWouldHitItself(testHead) {
+    for (const part of enemySnake) {
+        if (testHead.x === part.x && testHead.y === part.y) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function enemyWouldHitPlayerBody(testHead) {
+    for (let i = 1; i < snake.length; i++) {
+        if (testHead.x === snake[i].x && testHead.y === snake[i].y) {
+            return true;
+        }
+    }
+
     return false;
 }
 
@@ -360,6 +500,17 @@ function resetGame() {
     enemyMoveDelay = 8;
     enemyStartingLength = 4;
 
+    invincibilityLevel = 0;
+    invincible = false;
+    invincibilityReady = true;
+    invincibilityDuration = 5000;
+    invincibilityCooldown = 60000;
+
+    clearTimeout(invincibilityEndTimer);
+    clearTimeout(invincibilityCooldownTimer);
+
+    updateInvincibilityHud();
+
     clearInterval(gameInterval);
     gameInterval = setInterval(gameLoop, gameSpeed);
 
@@ -373,6 +524,8 @@ function resetGame() {
         y: 0 
     };
 }
+
+updateInvincibilityHud();
 
 draw();
 gameInterval = setInterval(gameLoop, gameSpeed);
