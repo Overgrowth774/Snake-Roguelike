@@ -1,7 +1,7 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const scoreElement = document.getElementById("score");
-
+const highScoreElement = document.getElementById("high-score");
 const tileSize = 24;
 const tileCountX = canvas.width / tileSize;
 const tileCountY = canvas.height / tileSize;
@@ -16,11 +16,21 @@ let apples = [
     { x: 15, y: 15 }
 ];
 let score = 0;
+let highscore = localStorage.getItem("snakeHighScore") || 0;
+highScoreElement.textContent = highscore;
 let applesEaten = 0;
 let scoreMultiplier = 1;
 let growthAmount = 1;
 let gameSpeed = 120;
 let gameInterval;
+let upgradesChosen = 0;
+
+let enemySnake = [];
+let enemyActive = false;
+let enemyMoveCounter = 0;
+let enemyMoveDelay = 8;
+let enemyStartingLength = 4;
+
 
 let direction = { 
     x: 1, 
@@ -33,6 +43,18 @@ let nextDirection = {
 };
 
 document.addEventListener("keydown", changeDirection);
+
+function addScore(points) {
+    score += points * scoreMultiplier;
+    scoreElement.textContent = score;
+
+    if (score > highscore) {
+        highscore = score;
+        highScoreElement.textContent = highscore;
+        localStorage.setItem("snakeHighScore", highscore);
+    }
+
+}
 
 function changeDirection(event) {
     const key = event.key.toLowerCase();
@@ -83,8 +105,7 @@ function gameLoop() {
         if (newHead.x === apples[i].x && newHead.y === apples[i].y) {
             ateApple = true;
 
-            score += 10 * scoreMultiplier;
-            scoreElement.textContent = score;
+            addScore(10 * scoreMultiplier);
 
             applesEaten++;
 
@@ -107,6 +128,7 @@ function gameLoop() {
         }
     }
 
+    updateEnemySnake();
     draw();
     
 }
@@ -114,12 +136,16 @@ function gameLoop() {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillStyle = "#4ade80";
+    for (let i = 0; i < snake.length; i++) {
+        if (i === 0) {
+            ctx.fillStyle = "#3b82f6";
+        } else {
+            ctx.fillStyle = "#4ade80";
+        }
 
-    for (const part of snake) {
         ctx.fillRect(
-            part.x * tileSize,
-            part.y * tileSize,
+            snake[i].x * tileSize,
+            snake[i].y * tileSize,
             tileSize - 2,
             tileSize - 2
         );
@@ -135,7 +161,25 @@ function draw() {
             tileSize - 2
         );
     }
+
+    if (enemyActive) {
+        for (let i = 0; i < enemySnake.length; i++) {
+            if (i === 0) {
+                ctx.fillStyle = "#facc15";
+            } else {
+                ctx.fillStyle = "#a855f7";
+            }
+
+            ctx.fillRect(
+                enemySnake[i].x * tileSize,
+                enemySnake[i].y * tileSize,
+                tileSize - 2,
+                tileSize - 2
+            );
+        }
+    }
 }
+
 
 function createApple() {
     const newApple = {
@@ -183,7 +227,101 @@ function chooseUpgrade() {
     if (choice === "3") {
         growthAmount++;
     }
+
+    upgradesChosen++;
+
+    if (upgradesChosen > 2) {
+        upgradeEnemySnake();
+    }
+
 }
+
+function spawnEnemySnake() {
+    enemyActive = true;
+    enemySnake = [];
+
+    const corners = [
+        { x: 0, y: 0 },
+        { x: tileCountX - 1, y: 0 },
+        { x: 0, y: tileCountY - 1 },
+        { x: tileCountX - 1, y: tileCountY - 1 }
+    ];
+
+    const corner = corners[Math.floor(Math.random() * corners.length)];
+
+    for (let i = 0; i < enemyStartingLength; i++) {
+        enemySnake.push({ 
+            x: corner.x,
+            y: corner.y
+        });
+    }
+}
+
+function upgradeEnemySnake() {
+    enemyStartingLength++;
+
+    if (enemySnake.length > 0) {
+        enemySnake.push({ ...enemySnake[enemySnake.length - 1] });
+    }
+
+    enemyMoveDelay = Math.max(1, enemyMoveDelay - 1);
+}
+
+function updateEnemySnake() {
+    if (!enemyActive) {
+        return;
+    }
+
+    enemyMoveCounter++;
+
+    if (enemyMoveCounter < enemyMoveDelay) {
+        return;
+    }
+
+    enemyMoveCounter = 0;
+
+    const enemyHead = enemySnake[0];
+    const playerHead = snake[0];
+
+    let moveX = 0;
+    let moveY = 0;
+
+    const distanceX = playerHead.x - enemyHead.x;
+    const distanceY = playerHead.y - enemyHead.y;
+
+    if (Math.abs(distanceX) > Math.abs(distanceY)) {
+        moveX = distanceX > 0 ? 1 : -1;
+    } else {
+        moveY = distanceY > 0 ? 1 : -1;
+    }
+
+    const newEnemyHead = {
+        x: enemyHead.x + moveX,
+        y: enemyHead.y + moveY
+    };
+
+    enemySnake.unshift(newEnemyHead);
+    enemySnake.pop();
+
+    if (enemyHitsPlayer()) {
+        addScore(100 * scoreMultiplier);
+        spawnEnemySnake();
+    }
+}
+
+function enemyHitsPlayer() {
+    const enemyHead = enemySnake[0];
+
+    for (const part of snake) {
+        if (part.x === enemyHead.x && part.y === enemyHead.y) {
+            return true;
+        }
+    }
+
+    return false;
+
+}
+
 
 function snakeHitsItself(head) {
     for (const part of snake) {
@@ -212,6 +350,13 @@ function resetGame() {
     scoreMultiplier = 1;
     growthAmount = 1;
     gameSpeed = 120;
+
+    upgradesChosen = 0;
+    enemySnake = [];
+    enemyActive = false;
+    enemyMoveCounter = 0;
+    enemyMoveDelay = 8;
+    enemyStartingLength = 4;
 
     clearInterval(gameInterval);
     gameInterval = setInterval(gameLoop, gameSpeed);
