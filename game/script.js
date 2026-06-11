@@ -78,6 +78,7 @@ function gameLoop() {
     } else {
         snake.pop();
     }
+    draw();
 }
 
 function draw() {
