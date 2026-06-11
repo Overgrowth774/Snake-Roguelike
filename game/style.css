@@ -1,0 +1,26 @@
+body {
+    margin: 0;
+    background-color: #101418;
+    color: white;
+    font-family: 'Arial', sans-serif;
+    text-align: center;
+}
+
+h1 {
+    margin-top: 24px;
+}
+
+#hud {
+    font-size:24px;
+    margin-bottom:16px;
+}
+
+#hud {
+    font-size: 24px;
+    margin-bottom: 16px;
+}
+
+canvas {
+    background-color: #1c232b;
+    border: 3px solid #ffffff;
+}

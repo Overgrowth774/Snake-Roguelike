@@ -62,4 +62,5 @@ for (const part of snake) {
 ctx.fillStyle = "red";
 ctx.fillRect(apple.x * tileSize, apple.y * tileSize, tileSize - 2, tileSize - 2);
 
-setInterval(gameLoop, 120);
+setInterval(gameLoop, 120); 
+
