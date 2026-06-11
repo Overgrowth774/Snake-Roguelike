@@ -3,18 +3,24 @@ const ctx = canvas.getContext("2d");
 const scoreElement = document.getElementById("score");
 
 const tileSize = 24;
-const tileCount = canvas.width / tileSize;
+const tileCountX = canvas.width / tileSize;
+const tileCountY = canvas.height / tileSize;
 
 let snake = [
     { x: 12, y: 12 }
 ];
 
-let apple = { 
-    x: 5, 
-    y: 5 
-};
-
+let apples = [
+    { x: 5, y: 5 },
+    { x: 10, y: 10 },
+    { x: 15, y: 15 }
+];
 let score = 0;
+let applesEaten = 0;
+let scoreMultiplier = 1;
+let growthAmount = 1;
+let gameSpeed = 120;
+let gameInterval;
 
 let direction = { 
     x: 1, 
@@ -60,9 +66,9 @@ function gameLoop() {
 
     if (
         newHead.x < 0 || 
-        newHead.x >= tileCount ||
+        newHead.x >= tileCountX ||
         newHead.y < 0 || 
-        newHead.y >= tileCount ||
+        newHead.y >= tileCountY ||
         snakeHitsItself(newHead)
     ) {
         resetGame();
@@ -71,14 +77,38 @@ function gameLoop() {
 
     snake.unshift(newHead);
 
-    if (newHead.x === apple.x && newHead.y === apple.y) {
-        score += 10;
-        scoreElement.textContent = score;
-        placeApple();
-    } else {
-        snake.pop();
+    let ateApple = false;
+
+    for (let i = 0; i < apples.length; i++) {
+        if (newHead.x === apples[i].x && newHead.y === apples[i].y) {
+            ateApple = true;
+
+            score += 10 * scoreMultiplier;
+            scoreElement.textContent = score;
+
+            applesEaten++;
+
+            apples[i] = createApple();
+
+            if (applesEaten % 10 === 0) {
+                chooseUpgrade();
+            }
+
+            break;
+
+        }
     }
+
+    if (!ateApple) {
+        snake.pop();
+    } else {
+        for (let i = 0; i < growthAmount - 1; i++) {
+            snake.push({ ...snake[snake.length - 1] });
+        }
+    }
+
     draw();
+    
 }
 
 function draw() {
@@ -97,25 +127,61 @@ function draw() {
 
     ctx.fillStyle = "#ef4444";
 
-    ctx.fillRect(
-        apple.x * tileSize,
-        apple.y * tileSize,
-        tileSize - 2,
-        tileSize - 2
-    );
+    for (const apple of apples) {
+        ctx.fillRect(
+            apple.x * tileSize,
+            apple.y * tileSize,
+            tileSize - 2,
+            tileSize - 2
+        );
+    }
 }
 
-function placeApple() {
-    apple = {
-        x: Math.floor(Math.random() * tileCount),
-        y: Math.floor(Math.random() * tileCount)
+function createApple() {
+    const newApple = {
+        x: Math.floor(Math.random() * tileCountX),
+        y: Math.floor(Math.random() * tileCountY)
     };
 
     for (const part of snake) {
-        if (part.x === apple.x && part.y === apple.y) {
-            placeApple();
-            break;
+        if (part.x === newApple.x && part.y === newApple.y) {
+            return createApple();
         }
+    }
+
+    for (const apple of apples) {
+        if (apple.x === newApple.x && apple.y === newApple.y) {
+            return createApple();
+        }
+    }
+
+    return newApple;
+
+}
+
+function chooseUpgrade() {
+    const upgrades = [
+        "Speed Up",
+        "Double Score",
+        "Grow More"
+    ];
+
+    const choice = prompt(
+        `Choose an upgrade:\n1. Speed Up\n2. Double Score\n3. Grow More`
+    );
+
+    if (choice === "1") {
+        gameSpeed = Math.max(50, gameSpeed - 20);
+        clearInterval(gameInterval);
+        gameInterval = setInterval(gameLoop, gameSpeed);
+    }
+
+    if (choice === "2") {
+        scoreMultiplier++;
+    }
+
+    if (choice === "3") {
+        growthAmount++;
     }
 }
 
@@ -133,13 +199,22 @@ function resetGame() {
         { x: 12, y: 12 }
     ];
 
-    apple = { 
-        x: 5, 
-        y: 5 
-    };
+    apples = [
+        { x: 5, y: 5 },
+        { x: 10, y: 10 },
+        { x: 15, y: 15 }
+    ];
+    
 
     score = 0;
     scoreElement.textContent = score;
+    applesEaten = 0;
+    scoreMultiplier = 1;
+    growthAmount = 1;
+    gameSpeed = 120;
+
+    clearInterval(gameInterval);
+    gameInterval = setInterval(gameLoop, gameSpeed);
 
     direction = { 
         x: 1, 
@@ -153,4 +228,4 @@ function resetGame() {
 }
 
 draw();
-setInterval(gameLoop, 120);
+gameInterval = setInterval(gameLoop, gameSpeed);

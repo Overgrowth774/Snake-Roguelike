@@ -23,4 +23,6 @@ h1 {
 canvas {
     background-color: #1c232b;
     border: 3px solid #ffffff;
+    max-width:95vw;
+    max-height:95vh;
 }
