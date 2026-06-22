@@ -214,12 +214,12 @@ function draw() {
         ctx.fillStyle = "#4a5568";
     }
 
-    ctx.fillStyle = "#dc2626";
+    ctx.fillStyle = "#f59e0b";
     for (const hazard of hazards) {
         ctx.fillRect(hazard.x * tileSize, hazard.y * tileSize, tileSize, tileSize);
-        ctx.fillStyle = "#b91c1c";
+        ctx.fillStyle = "#d97706";
         ctx.fillRect(hazard.x * tileSize + 2, hazard.y * tileSize + 2, tileSize - 4, tileSize - 4);
-        ctx.fillStyle = "#dc2626";
+        ctx.fillStyle = "#f59e0b";
     }
 
     for (let i = 0; i < snake.length; i++) {
