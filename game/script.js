@@ -121,6 +121,24 @@ function gameLoop() {
 
     if (magnetLevel > 0) {
         applyMagnet();
+
+        for (let i = 0; i < apples.length; i++) {
+            if (apples[i].x === snake[0].x && apples[i].y === snake[0].y) {
+                addScore(10 + piercingLevel * 5);
+                applesEaten++;
+                apples[i] = createApple();
+
+                if (applesEaten % 15 === 0) {
+                    chooseUpgrade();
+                }
+
+                for (let j = 0; j < growthAmount; j++) {
+                    snake.push({ ...snake[snake.length - 1] });
+                }
+
+                break;
+            }
+        }
     }
 
     const head = snake[0];
