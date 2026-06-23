@@ -860,11 +860,11 @@ function renderShop() {
         card.appendChild(buyBtn);
         list.appendChild(card);
     }
-
+}
 function renderSkins() {
     const list = document.getElementById("skins-list");
     list.innerHTML = "";
-}
+
     for (const skin of SKINS) {
         if (!ownedSkins.includes(skin.id)) continue;
 
