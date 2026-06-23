@@ -1,0 +1,24 @@
+{
+  "name": "snake-roguelike",
+  "version": "1.0.0",
+  "description": "A game where you try to eat apples and upgrade yourself while trying to survive the attacks of an evil snake that learns how you play.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Overgrowth774/Snake-Roguelike.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Overgrowth774/Snake-Roguelike/issues"
+  },
+  "homepage": "https://github.com/Overgrowth774/Snake-Roguelike#readme",
+  "dependencies": {
+    "opencode-ai": "^1.17.9"
+  }
+}
