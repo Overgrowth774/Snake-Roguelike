@@ -143,7 +143,7 @@ function showMenu() {
 
 function quitToMenu() {
     clearInterval(gameInterval);
-    totalPoints += Math.floor(earnedPoints / 10);
+    totalPoints += Math.floor(earnedPoints / 1);
     localStorage.setItem("snakePoints", totalPoints);
     earnedPoints = 0;
     showMenu();
@@ -896,7 +896,7 @@ function renderSkins() {
 
 function resetGame() {
 
-    totalPoints += Math.floor(earnedPoints / 10);
+    totalPoints += Math.floor(earnedPoints / 1);
     localStorage.setItem("snakePoints", totalPoints);
     earnedPoints = 0;
 
