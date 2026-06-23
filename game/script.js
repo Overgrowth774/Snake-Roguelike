@@ -6,7 +6,9 @@ const tileSize = 24;
 const tileCountX = canvas.width / tileSize;
 const tileCountY = canvas.height / tileSize;
 const invincibilityElement = document.getElementById("invincibility");
-
+const shieldElement = document.getElementById("shield");
+const timeSlowElement = document.getElementById("time-slow");
+const levelElement = document.getElementById("level");
 
 let snake = [
     { x: 12, y: 12 }
@@ -40,6 +42,26 @@ let invincibilityDuration = 5000;
 let invincibilityCooldown = 60000;
 let invincibilityEndTimer;
 let invincibilityCooldownTimer;
+let shield = 0;                         
+let piercingLevel = 0;                
+let timeSlowLevel = 0;
+let timeSlowActive = false;           
+let timeSlowReady = false;              
+let timeSlowDuration = 10000;
+let timeSlowCooldown = 60000;    
+let timeSlowEndTimer;                  
+let timeSlowCooldownTimer;              
+let magnetLevel = 0;           
+let level = 1;                          
+let walls = [];                  
+let hazards = [];                   
+let shieldFlashTimer = null;             
+let shieldInvulnerable = false;         
+
+const levelColors = [              
+    "#1c232b", "#1a2830", "#1c2e30", "#1e2e3a", "#202e44",
+    "#262c4c", "#2c2a50", "#342850", "#3c264c", "#442444"
+];
 
 let direction = { 
     x: 1, 
@@ -72,6 +94,10 @@ function changeDirection(event) {
     activateInvincibility();
     return;
 }
+    if (key === "b") {
+    activateTimeSlow();
+    return;
+}
 
     if ((key === "arrowup" || key === "w") && direction.y !== 1) {
         nextDirection = { x: 0, y: -1 };
@@ -93,6 +119,28 @@ function changeDirection(event) {
 function gameLoop() {
     direction = nextDirection;
 
+    if (magnetLevel > 0) {
+        applyMagnet();
+
+        for (let i = 0; i < apples.length; i++) {
+            if (apples[i].x === snake[0].x && apples[i].y === snake[0].y) {
+                addScore(10 + piercingLevel * 5);
+                applesEaten++;
+                apples[i] = createApple();
+
+                if (applesEaten % 15 === 0) {
+                    chooseUpgrade();
+                }
+
+                for (let j = 0; j < growthAmount; j++) {
+                    snake.push({ ...snake[snake.length - 1] });
+                }
+
+                break;
+            }
+        }
+    }
+
     const head = snake[0];
 
     const newHead = {
@@ -101,18 +149,39 @@ function gameLoop() {
     }; 
 
     if (invincible) {
-    newHead.x = Math.max(0, Math.min(tileCountX - 1, newHead.x));
-    newHead.y = Math.max(0, Math.min(tileCountY - 1, newHead.y));
-} else if (
-    newHead.x < 0 || 
-    newHead.x >= tileCountX ||
-    newHead.y < 0 || 
-    newHead.y >= tileCountY ||
-    snakeHitsItself(newHead)
-) {
-    resetGame();
-    return;
-}
+        newHead.x = Math.max(0, Math.min(tileCountX - 1, newHead.x));
+        newHead.y = Math.max(0, Math.min(tileCountY - 1, newHead.y));
+    } else {
+        let hitWallOrSelf = false;
+
+        if (newHead.x < 0 || newHead.x >= tileCountX || newHead.y < 0 || newHead.y >= tileCountY || snakeHitsItself(newHead)) {
+            hitWallOrSelf = true;
+        }
+
+        for (const wall of walls) {
+            if (wall.x === newHead.x && wall.y === newHead.y) {
+                hitWallOrSelf = true;
+                break;
+            }
+        }
+
+        for (const hazard of hazards) {
+            if (hazard.x === newHead.x && hazard.y === newHead.y) {
+                hitWallOrSelf = true;
+                break;
+            }
+        }
+
+        if (hitWallOrSelf) {
+            if (tryUseShield()) {
+                newHead.x = Math.max(0, Math.min(tileCountX - 1, newHead.x));
+                newHead.y = Math.max(0, Math.min(tileCountY - 1, newHead.y));
+            } else {
+                resetGame();
+                return;
+            }
+        }
+    }
 
     snake.unshift(newHead);
 
@@ -122,13 +191,14 @@ function gameLoop() {
         if (newHead.x === apples[i].x && newHead.y === apples[i].y) {
             ateApple = true;
 
-            addScore(10 * scoreMultiplier);
+            addScore(10 + piercingLevel * 5);
 
             applesEaten++;
 
             apples[i] = createApple();
 
-            if (applesEaten % 10 === 0) {
+            if (applesEaten % 15 === 0) {
+
                 chooseUpgrade();
             }
 
@@ -151,7 +221,24 @@ function gameLoop() {
 }
 
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = levelColors[(level - 1) % levelColors.length];
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "#4a5568";
+    for (const wall of walls) {
+        ctx.fillRect(wall.x * tileSize, wall.y * tileSize, tileSize, tileSize);
+        ctx.fillStyle = "#2d3748";
+        ctx.fillRect(wall.x * tileSize + 2, wall.y * tileSize + 2, tileSize - 4, tileSize - 4);
+        ctx.fillStyle = "#4a5568";
+    }
+
+    ctx.fillStyle = "#f59e0b";
+    for (const hazard of hazards) {
+        ctx.fillRect(hazard.x * tileSize, hazard.y * tileSize, tileSize, tileSize);
+        ctx.fillStyle = "#d97706";
+        ctx.fillRect(hazard.x * tileSize + 2, hazard.y * tileSize + 2, tileSize - 4, tileSize - 4);
+        ctx.fillStyle = "#f59e0b";
+    }
 
     for (let i = 0; i < snake.length; i++) {
         if (i === 0) {
@@ -217,47 +304,61 @@ function createApple() {
     }
 
     for (const enemyPart of enemySnake) {
-    if (enemyPart.x === newApple.x && enemyPart.y === newApple.y) {
-        return createApple();
+        if (enemyPart.x === newApple.x && enemyPart.y === newApple.y) {
+            return createApple();
+        }
     }
-}
+
+    for (const wall of walls) {
+        if (wall.x === newApple.x && wall.y === newApple.y) {
+            return createApple();
+        }
+    }
+
+    for (const hazard of hazards) {
+        if (hazard.x === newApple.x && hazard.y === newApple.y) {
+            return createApple();
+        }
+    }
 
     return newApple;
 
 }
 
 function chooseUpgrade() {
-    const upgrades = [
-        "Speed Up",
-        "Double Score",
-        "Grow More"
-    ];
-
     const choice = prompt(
-    `Choose an upgrade:\n1. Speed Up\n2. Double Score\n3. Grow More\n4. Invincibility`
-);
+        `Choose an upgrade:\n1. Speed Up\n2. Double Score\n3. Grow More\n4. Invincibility\n5. Shield\n6. Piercing\n7. Time Slow\n8. Magnet`
+    );
 
     if (choice === "1") {
         gameSpeed = Math.max(50, gameSpeed - 20);
         clearInterval(gameInterval);
         gameInterval = setInterval(gameLoop, gameSpeed);
-    }
-
-    if (choice === "2") {
+    } else if (choice === "2") {
         scoreMultiplier++;
-    }
-
-    if (choice === "3") {
+    } else if (choice === "3") {
         growthAmount++;
+    } else if (choice === "4") {
+        invincibilityLevel++;
+        invincibilityDuration += 1000;
+        invincibilityCooldown += 1000;
+        invincibilityReady = true;
+        updateInvincibilityHud();
+    } else if (choice === "5") {
+        shield++;
+        shieldElement.textContent = shield;
+    } else if (choice === "6") {
+        piercingLevel++;
+    } else if (choice === "7") {
+        timeSlowLevel++;
+        timeSlowReady = true;
+        timeSlowDuration += 1000;
+        timeSlowCooldown += 1000;
+        updateTimeSlowHud();
+    } else if (choice === "8") {
+        magnetLevel++;
     }
 
-    if (choice === "4") {
-    invincibilityLevel++;
-    invincibilityDuration += 1000;
-    invincibilityCooldown += 1000;
-    invincibilityReady = true;
-    updateInvincibilityHud();
-}
     upgradesChosen++;
 
     if (upgradesChosen === 2) {
@@ -266,6 +367,14 @@ function chooseUpgrade() {
         upgradeEnemySnake();
     }
 
+    level++;
+    levelElement.textContent = level;
+
+    gameSpeed = Math.max(50, 120 - level * 5);
+    clearInterval(gameInterval);
+    gameInterval = setInterval(gameLoop, gameSpeed);
+
+    generateLevel();
 }
 
 function activateInvincibility() {
@@ -341,7 +450,12 @@ function updateEnemySnake() {
 
     enemyMoveCounter++;
 
-    if (enemyMoveCounter < enemyMoveDelay) {
+    let effectiveDelay = enemyMoveDelay;
+    if (timeSlowActive) {
+        effectiveDelay = enemyMoveDelay * 2;
+    }
+
+    if (enemyMoveCounter < effectiveDelay) {
         return;
     }
 
@@ -378,6 +492,20 @@ function updateEnemySnake() {
 
         if (enemyWouldHitPlayerBody(testHead)) {
             moveScore += 3000;
+        }
+
+        for (const wall of walls) {
+            if (testHead.x === wall.x && testHead.y === wall.y) {
+                moveScore += 10000;
+                break;
+            }
+        }
+
+        for (const hazard of hazards) {
+            if (testHead.x === hazard.x && testHead.y === hazard.y) {
+                moveScore += 8000;
+                break;
+            }
         }
 
         if (moveScore < bestScore) {
@@ -474,6 +602,155 @@ function enemyWouldHitPlayerBody(testHead) {
     return false;
 }
 
+function tryUseShield() {
+    if (shieldInvulnerable) {
+        return true;
+    }
+
+    if (shield > 0) {
+        shield--;
+        shieldInvulnerable = true;
+        shieldElement.textContent = shield;
+
+        clearTimeout(shieldFlashTimer);
+        shieldFlashTimer = setTimeout(function () {
+            shieldInvulnerable = false;
+        }, 500);
+
+        return true;
+    }
+
+    return false;
+}
+
+function activateTimeSlow() {
+    if (timeSlowLevel === 0 || !timeSlowReady || timeSlowActive) {
+        return;
+    }
+
+    timeSlowActive = true;
+    timeSlowReady = false;
+    updateTimeSlowHud();
+
+    clearTimeout(timeSlowEndTimer);
+    clearTimeout(timeSlowCooldownTimer);
+
+    timeSlowEndTimer = setTimeout(function () {
+        timeSlowActive = false;
+        updateTimeSlowHud();
+    }, timeSlowDuration);
+
+    timeSlowCooldownTimer = setTimeout(function () {
+        timeSlowReady = true;
+        updateTimeSlowHud();
+    }, timeSlowCooldown);
+}
+
+function updateTimeSlowHud() {
+    if (timeSlowLevel === 0) {
+        timeSlowElement.textContent = "Locked";
+    } else if (timeSlowActive) {
+        timeSlowElement.textContent = "Active";
+    } else if (timeSlowReady) {
+        timeSlowElement.textContent = "Ready";
+    } else {
+        timeSlowElement.textContent = "Cooldown";
+    }
+}
+
+function applyMagnet() {
+    const head = snake[0];
+    const range = magnetLevel * 4;
+
+    for (const apple of apples) {
+        const dist = Math.abs(apple.x - head.x) + Math.abs(apple.y - head.y);
+        if (dist === 0 || dist > range) {
+            continue;
+        }
+
+        const dx = Math.sign(head.x - apple.x);
+        const dy = Math.sign(head.y - apple.y);
+
+        const newX = apple.x + dx;
+        const newY = apple.y + dy;
+
+        let blocked = false;
+
+        if (newX < 0 || newX >= tileCountX || newY < 0 || newY >= tileCountY) {
+            blocked = true;
+        }
+
+        if (!blocked) {
+            for (const wall of walls) {
+                if (wall.x === newX && wall.y === newY) {
+                    blocked = true;
+                    break;
+                }
+            }
+        }
+
+        if (!blocked) {
+            for (const hazard of hazards) {
+                if (hazard.x === newX && hazard.y === newY) {
+                    blocked = true;
+                    break;
+                }
+            }
+        }
+
+        if (!blocked) {
+            apple.x = newX;
+            apple.y = newY;
+        }
+    }
+}
+
+function generateLevel() {
+    const wallCount = Math.min(5 + level * 2, 25);
+    const hazardCount = Math.min(2 + level, 10);
+
+    const occupied = new Set();
+
+    for (const part of snake) {
+        occupied.add(part.x + "," + part.y);
+    }
+
+    for (const apple of apples) {
+        occupied.add(apple.x + "," + apple.y);
+    }
+
+    if (enemyActive) {
+        for (const part of enemySnake) {
+            occupied.add(part.x + "," + part.y);
+        }
+    }
+
+    walls = [];
+    hazards = [];
+
+    for (let attempt = 0; attempt < 100 && walls.length < wallCount; attempt++) {
+        const x = Math.floor(Math.random() * tileCountX);
+        const y = Math.floor(Math.random() * tileCountY);
+        const key = x + "," + y;
+
+        if (!occupied.has(key)) {
+            walls.push({ x, y });
+            occupied.add(key);
+        }
+    }
+
+    for (let attempt = 0; attempt < 100 && hazards.length < hazardCount; attempt++) {
+        const x = Math.floor(Math.random() * tileCountX);
+        const y = Math.floor(Math.random() * tileCountY);
+        const key = x + "," + y;
+
+        if (!occupied.has(key)) {
+            hazards.push({ x, y });
+            occupied.add(key);
+        }
+    }
+}
+
 function resetGame() {
     snake = [
         { x: 12, y: 12 }
@@ -511,6 +788,25 @@ function resetGame() {
 
     updateInvincibilityHud();
 
+    shield = 0;
+    piercingLevel = 0;
+    timeSlowLevel = 0;
+    timeSlowActive = false;
+    timeSlowReady = false;
+    magnetLevel = 0;
+    level = 1;
+    walls = [];
+    hazards = [];
+    shieldInvulnerable = false;
+
+    clearTimeout(timeSlowEndTimer);
+    clearTimeout(timeSlowCooldownTimer);
+    clearTimeout(shieldFlashTimer);
+
+    shieldElement.textContent = "0";
+    timeSlowElement.textContent = "Locked";
+    levelElement.textContent = "1";
+
     clearInterval(gameInterval);
     gameInterval = setInterval(gameLoop, gameSpeed);
 
@@ -526,6 +822,7 @@ function resetGame() {
 }
 
 updateInvincibilityHud();
+updateTimeSlowHud();
 
 draw();
 gameInterval = setInterval(gameLoop, gameSpeed);
