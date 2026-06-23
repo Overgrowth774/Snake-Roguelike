@@ -1,25 +1,64 @@
 <!DOCTYPE html>
+
 <html>
+
 <head>
+
   <title>Snake The Game: Evolution</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
-  <h1>Snake The Game: Evolution</h1>
 
-  <div id="hud">
-    Score: <span id="score">0</span>
-    High Score: <span id="high-score">0</span>
-    Invincibility: <span id="invincibility">Locked</span>
-    Shield: <span id="shield">0</span>
-    Time Slow: <span id="time-slow">Locked</span>
-    Level: <span id="level">1</span>
+<body>
+
+  <!-- ===== MENU SCREEN ===== -->
+  <div id="menu-screen" class="screen">
+    <h1>Snake The Game: Evolution</h1>
+    <button onclick="showScreen('play-screen')">Play</button>
+<!-- Skin button-->
+    <button onclick="renderSkins(); showScreen('skins-screen');">Skins</button>
+<!-- Shop button-->
+    <button onclick="renderShop(); showScreen('shop-screen');">Shop</button>    <p>Points: <span id="menu-points">0</span></p>
   </div>
 
-  <canvas id="game" width="1920" height="1440"></canvas>
+  <!-- ===== DIFFICULTY SCREEN ===== -->
+  <div id="play-screen" class="screen" style="display: none;"> 
+    <h2>Choose Difficulty</h2>
+    <button onclick="startGame('baby')">Baby</button>
+    <button onclick="startGame('normal')">Normal</button>
+    <button onclick="startGame('extreme')">Extreme</button>
+    <button onclick="showScreen('menu-screen')">Back</button>
+  </div>
+
+  <!-- ===== GAME SCREEN ===== -->
+  <div id="game-screen" class="screen" style="display: none;">
+    <div id="hud">
+      Score: <span id="score">0</span>
+      High Score: <span id="high-score">0</span> 
+      Invincibility: <span id="invincibility">Locked</span>
+      Shield: <span id="shield">0</span>
+      Time Slow: <span id="time-slow">Locked</span>
+      Level: <span id="level">1</span>
+    </div>
+    <canvas id="game-canvas" width="1920" height="1440"></canvas>
+    <button onclick=""quitToMenu()">Quit to Menu</button>
+  </div>
+
+  <!-- ===== SKINS SCREEN ===== -->
+  <div id="skins-screen" class="screen" style="display: none;">
+    <h2>MySkins</h2>
+    <div id="skins-list"></div>
+    <button onclick="showScreen('menu-screen')">Back</button>
+  </div>
+
+  <!-- ===== SHOP SCREEN ===== -->
+  <div id="shop-screen" class="screen" style="display: none;">
+    <h2>Shop</h2>
+    <div id="shop-list"></div>
+    <button onclick="showScreen('menu-screen')">Back</button>
+    
+  </div>
 
   <script src="script.js"></script>
-
-
 </body>
+
 </html>

@@ -10,6 +10,8 @@ const shieldElement = document.getElementById("shield");
 const timeSlowElement = document.getElementById("time-slow");
 const levelElement = document.getElementById("level");
 
+
+
 let snake = [
     { x: 12, y: 12 }
 ];
@@ -57,11 +59,35 @@ let walls = [];
 let hazards = [];                   
 let shieldFlashTimer = null;             
 let shieldInvulnerable = false;         
+let difficulty = "normal";
 
 const levelColors = [              
     "#1c232b", "#1a2830", "#1c2e30", "#1e2e3a", "#202e44",
     "#262c4c", "#2c2a50", "#342850", "#3c264c", "#442444"
 ];
+
+const SKINS = [
+    {id: "default", name: "Classic", bodyColor: "#4ade80", headColor: "#3b82f6", price: 0},
+    {id: "eyehurts", name: "Inverted", bodyColor: "#b5317f ", headColor: "#c47d09 ", price: 50},
+    {id: "me liek dirt", name: "Dirty", bodyColor: "#aa6600", headColor: "#8b4800", price: 100},
+    {id: "AM HUNGRY", name: "DracoBloxxer", bodyColor: "#aa0000", headColor: "#ff0000", price: 500},
+    {id: "just a lil' worm", name: "Worm", bodyColor: "#ff82c7", headColor: "#fca9c2", price: 1500},
+    {id: "cannibalism", name: "Apple", bodyColor: "#ec5a5a", headColor: "#ef4444", price: 3000},
+    {id: "i mean, you just painted yourself black", name: "Chameleon", bodyColor: "#262728", headColor: "#000000", price: 3500},
+    {id: "you can't see me oooooooo", name: "Ghost", bodyColor: "#d3d3d3", headColor: "#ffffff", price: 5000},
+    {id: "snek", name: "Snek", bodyColor: "#a3e635", headColor: "#65a30d", price: 5000},
+    {id: "I LIKE MONEY", name: "Mr. Krabs", bodyColor: "#4696ff", headColor: "#b91c1c", price: 6000},
+    {id: "bro is NOT tuff", name: "Destroyer", bodyColor: "#8b8b8b", headColor: "#7e0000", price: 7000},
+    {id: "Cha-Ching!", name: "Mr. Money Bags", bodyColor: "#ffdb29", headColor: "#fff700", price: 10000},
+    {id: "If you can't beat them, join them", name: "Enemy", bodyColor: "#a855f7", headColor: "#facc15", price: 15000},
+    {id: "Bro touch grass", name: "Invisible", bodyColor: "#ff000025", headColor: "#ff00fb2d", price: 100000}
+];
+
+let ownedSkins = JSON.parse(localStorage.getItem("snakeOwnedSkins") || '["default"]');
+let equippedSkin = localStorage.getItem("snakeEquippedSkin") || "default";
+let totalPoints = parseInt(localStorage.getItem("snakePoints") || 0);
+let earnedPoints = 0;
+let difficultyScoreMultiplier = 1;
 
 let direction = { 
     x: 1, 
@@ -76,7 +102,7 @@ let nextDirection = {
 document.addEventListener("keydown", changeDirection);
 
 function addScore(points) {
-    score += points * scoreMultiplier;
+    score += Math.floor(points * scoreMultiplier * difficultyScoreMultiplier);
     scoreElement.textContent = score;
 
     if (score > highscore) {
@@ -85,6 +111,43 @@ function addScore(points) {
         localStorage.setItem("snakeHighScore", highscore);
     }
 
+}
+
+function StartGame(diff) {
+    difficulty = diff;
+
+    if (diff === "baby") {
+        difficultyScoreMultiplier = 0.5;
+    } else if (diff === "normal") {
+        difficultyScoreMultiplier = 1;
+    } else if (diff === "extreme") {
+        difficultyScoreMultiplier = 10;
+    }
+
+    showScreen("game-screen");
+    resetGame();
+    gameInterval = setInterval(gameLoop, gameSpeed);
+}
+
+
+function showScreen(id) {
+    document.querySelectorAll(".screen").forEach(function(s) {
+        s.style.display = "none";
+    });
+    document.getElementById(id).style.display = "block";
+}
+
+function showMenu() {
+    document.getElementById("menu-points").textContent = totalPoints;
+    showScreen("menu-screen");
+}
+
+function quitToMenu() {
+    clearInterval(gameInterval);
+    totalPoints += Math.floor(earnedPoints / 10);
+    localStorage.setItem("snakePoints", totalPoints);
+    earnedPoints = 0;
+    showMenu();
 }
 
 function changeDirection(event) {
@@ -127,6 +190,7 @@ function gameLoop() {
                 addScore(10 + piercingLevel * 5);
                 applesEaten++;
                 apples[i] = createApple();
+                earnedPoints += 10 + piercingLevel * 5;
 
                 if (applesEaten % 15 === 0) {
                     chooseUpgrade();
@@ -192,14 +256,24 @@ function gameLoop() {
             ateApple = true;
 
             addScore(10 + piercingLevel * 5);
+            earnedPoints += 10 + piercingLevel * 5;
 
             applesEaten++;
 
             apples[i] = createApple();
+        
+            if (applesEaten % 10 === 0) {
+                if (difficulty === "extreme") {
+                    buffEnemy();
+                } else {
+                    chooseUpgrade();
+                    buffEnemy();
+                }
+            }
 
             if (applesEaten % 15 === 0) {
 
-                chooseUpgrade();
+                advanceLevel();
             }
 
             break;
@@ -240,13 +314,12 @@ function draw() {
         ctx.fillStyle = "#f59e0b";
     }
 
-    for (let i = 0; i < snake.length; i++) {
-        if (i === 0) {
-            ctx.fillStyle = "#3b82f6";
-        } else {
-            ctx.fillStyle = "#4ade80";
-        }
+    const skin = SKINS.find(function(s) {
+        return s.id === equippedSkin;
+    }) || SKINS[0];
 
+    for (let i = 0; i < snake.length; i++) {
+        ctx.fillStyle = i === 0 ? skin.headColor : skin.bodyColor;
         ctx.fillRect(
             snake[i].x * tileSize,
             snake[i].y * tileSize,
@@ -325,9 +398,35 @@ function createApple() {
 
 }
 
+function buffEnemy() {
+    upgradesChosen++;
+
+    if (upgradesChosen === 2) {
+        spawnEnemySnake();
+    } else if (upgradesChosen > 2) {
+        upgradeEnemySnake();
+    }
+}
+
+function advanceLevel() {
+    level++;
+    levelElement.textContent = level;
+
+    gameSpeed = Math.max(50, 120 - level * 5);
+    clearInterval(gameInterval);
+    gameInterval = setInterval(gameLoop, gameSpeed);
+
+    generateLevel();
+}
+
 function chooseUpgrade() {
+    if (difficulty === "extreme") {
+        return;
+    }
+
     const choice = prompt(
-        `Choose an upgrade:\n1. Speed Up\n2. Double Score\n3. Grow More\n4. Invincibility\n5. Shield\n6. Piercing\n7. Time Slow\n8. Magnet`
+        `Choose an upgrade:\n1. Speed Up\n2. Double Score\n3. Grow More\n4. 
+        Invincibility\n5. Shield\n6. Piercing\n7. Time Slow\n8. Magnet`
     );
 
     if (choice === "1") {
@@ -359,23 +458,8 @@ function chooseUpgrade() {
         magnetLevel++;
     }
 
-    upgradesChosen++;
-
-    if (upgradesChosen === 2) {
-        spawnEnemySnake();
-    } else if (upgradesChosen > 2) {
-        upgradeEnemySnake();
-    }
-
-    level++;
-    levelElement.textContent = level;
-
-    gameSpeed = Math.max(50, 120 - level * 5);
-    clearInterval(gameInterval);
-    gameInterval = setInterval(gameLoop, gameSpeed);
-
-    generateLevel();
 }
+
 
 function activateInvincibility() {
     if (invincibilityLevel === 0 || !invincibilityReady || invincible) {
@@ -751,7 +835,76 @@ function generateLevel() {
     }
 }
 
+function renderShop() {
+    const list = document.getElementById("shop-list");
+    document.getElementById("shop-points").textContent = totalPoints;
+    list.innerHTML = "";
+
+    for (const skin of SKINS) {
+        if (ownedSkins.includes(skin.id)) continue;
+
+        const card = document.createElement("div");
+        card.className
+        card.innerHTML = 
+        `<strong>${skin.name}</strong><br>
+         <span class="color-swatch" style="background: ${skin.bodyColor};"></span>
+         <span class="color-swatch" style="background: ${skin.bodyColor};"></span><br>
+         Price: ${skin.price}<br>`;
+
+        const buyBtn = document.createElement("button");
+        buyBtn.textContent = totalPoints >= skin.price ? "Buy" : "Not enough points";
+        buyBtn.disabled = totalPoints < skin.price;
+        buyBtn.onabort = function() {
+            totalPoints -= skin.price;
+            ownedSkins.push(skin.id);
+            localStorage.setItem("snakePoints", totalPoints);
+            localStorage.setItem("snakeOwnedSkins", JSON.stringify(ownedSkins));
+            renderShop();
+            renderSkins();
+        };
+        card.appendChild(buyBtn);
+        list.appendChild(card);
+    }
+
+function renderSkins() {
+    const list = document.getElementById("skins-list");
+    list.innerHTML = "";
+
+    for (const skin of SKINS) {
+        if (!ownedSkins.includes(skin.id)) continue;
+
+        const card = document.createElement("div");
+        card.className = "skin-card" + (equippedSkin === skin.id ? " equipped" : "");
+        card.innerHTML = 
+        `<strong>${skin.name}</strong><br>
+         <span class="color-swatch" style="background: ${skin.bodyColor};"></span>
+         <span class="color-swatch" style="background: ${skin.bodyColor};"></span><br>`;
+        
+         if (equippedSkin !== skin.id) {
+            const equipBtn = document.createElement("button");
+            equipBtn.textContent = "Equip";
+            equipBtn.onclick = function() {
+                equippedSkin = skin.id;
+                localStorage.setItem("snakeEquippedSkin", equippedSkin);
+                renderSkins();
+            };
+            card.appendChild(equipBtn);
+        } else {
+            const tag = document.createElement("span");
+            tag.textContent = "Equipped";
+            tag.style.color = "#facc15";
+            card.appendChild(tag);
+        }
+        list.appendChild(card);
+    }
+}
+
 function resetGame() {
+
+    totalPoints += Math.floor(earnedPoints / 10);
+    localStorage.setItem("snakePoints", totalPoints);
+    earnedPoints = 0;
+
     snake = [
         { x: 12, y: 12 }
     ];
@@ -807,9 +960,6 @@ function resetGame() {
     timeSlowElement.textContent = "Locked";
     levelElement.textContent = "1";
 
-    clearInterval(gameInterval);
-    gameInterval = setInterval(gameLoop, gameSpeed);
-
     direction = { 
         x: 1, 
         y: 0 
@@ -819,7 +969,23 @@ function resetGame() {
         x: 1, 
         y: 0 
     };
-}
+
+    reset ===
+        if (difficulty === "baby") {
+            enemyMoveDelay = 12;
+            enemyStartingLength = 3;
+            gameSpeed = 150;
+        } else if (difficulty === "extreme") {
+            enemyMoveDelay = 4;
+            enemyStartingLength = 6;
+            gameSpeed = 80;
+            upgradesChosen = 2;
+            spawnEnemySnake();
+        }
+
+        clearInterval(gameInterval);
+        gameInterval = setInterval(gameLoop, gameSpeed);
+    }
 
 updateInvincibilityHud();
 updateTimeSlowHud();
