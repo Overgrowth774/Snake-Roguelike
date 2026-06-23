@@ -126,7 +126,6 @@ function startGame(diff) {
 
     showScreen("game-screen");
     resetGame();
-    gameInterval = setInterval(gameLoop, gameSpeed);
 }
 
 
