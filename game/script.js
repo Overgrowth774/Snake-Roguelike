@@ -113,7 +113,7 @@ function addScore(points) {
 
 }
 
-function StartGame(diff) {
+function startGame(diff) {
     difficulty = diff;
 
     if (diff === "baby") {
@@ -191,10 +191,6 @@ function gameLoop() {
                 applesEaten++;
                 apples[i] = createApple();
                 earnedPoints += 10 + piercingLevel * 5;
-
-                if (applesEaten % 15 === 0) {
-                    chooseUpgrade();
-                }
 
                 for (let j = 0; j < growthAmount; j++) {
                     snake.push({ ...snake[snake.length - 1] });
@@ -844,7 +840,7 @@ function renderShop() {
         if (ownedSkins.includes(skin.id)) continue;
 
         const card = document.createElement("div");
-        card.className
+        card.className = "skin-card";
         card.innerHTML = 
         `<strong>${skin.name}</strong><br>
          <span class="color-swatch" style="background: ${skin.bodyColor};"></span>
@@ -854,7 +850,7 @@ function renderShop() {
         const buyBtn = document.createElement("button");
         buyBtn.textContent = totalPoints >= skin.price ? "Buy" : "Not enough points";
         buyBtn.disabled = totalPoints < skin.price;
-        buyBtn.onabort = function() {
+        buyBtn.onclick = function() {
             totalPoints -= skin.price;
             ownedSkins.push(skin.id);
             localStorage.setItem("snakePoints", totalPoints);
@@ -869,7 +865,7 @@ function renderShop() {
 function renderSkins() {
     const list = document.getElementById("skins-list");
     list.innerHTML = "";
-
+}
     for (const skin of SKINS) {
         if (!ownedSkins.includes(skin.id)) continue;
 
@@ -970,7 +966,7 @@ function resetGame() {
         y: 0 
     };
 
-    reset ===
+    
         if (difficulty === "baby") {
             enemyMoveDelay = 12;
             enemyStartingLength = 3;
