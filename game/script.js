@@ -894,6 +894,7 @@ function renderSkins() {
     }
 }
 
+
 function resetGame() {
 
     totalPoints += Math.floor(earnedPoints / 1);
